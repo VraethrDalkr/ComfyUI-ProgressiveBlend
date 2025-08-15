@@ -43,3 +43,11 @@ htmlcov/
 *.ckpt
 *.pt
 *.pth
+
+# PyCharm
+*.iml
+*.iws
+*.ipr
+
+# OS
+Thumbs.db

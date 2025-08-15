@@ -40,10 +40,10 @@ class ProgressiveColorMatchBlend:
 
         return {
             "required": {
-                "start_image_ref": ("IMAGE",),  # Start reference image for color matching
-                "end_image_ref": ("IMAGE",),    # End reference image for color matching
-                "image_target": ("IMAGE",),     # Target image batch to process
-                "match_method": (
+                "start_reference": ("IMAGE",),  # Start reference image for color matching
+                "end_reference": ("IMAGE",),    # End reference image for color matching
+                "target_images": ("IMAGE",),    # Target image batch to process
+                "method": (
                     [
                         'mkl',
                         'hm',
@@ -54,7 +54,7 @@ class ProgressiveColorMatchBlend:
                     ],
                     {"default": 'mkl'}
                 ),
-                "match_strength": ("FLOAT", {
+                "strength": ("FLOAT", {
                     "default": 1.0,
                     "min": 0.0,
                     "max": 10.0,
@@ -131,11 +131,11 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
             # Return original image on error
             return target_image
 
-    def progressive_color_match(self, start_image_ref: torch.Tensor,
-                               end_image_ref: torch.Tensor,
-                               image_target: torch.Tensor,
-                               match_method: str,
-                               match_strength: float,
+    def progressive_color_match(self, start_reference: torch.Tensor,
+                               end_reference: torch.Tensor,
+                               target_images: torch.Tensor,
+                               method: str,
+                               strength: float,
                                multithread: bool = True,
                                blend_curve: str = "linear",
                                reverse: bool = False) -> Tuple[torch.Tensor]:
@@ -143,11 +143,11 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
         Progressively apply color matching and blending to an image batch.
 
         Args:
-            start_image_ref: Reference image for start of sequence color matching
-            end_image_ref: Reference image for end of sequence color matching
-            image_target: Target image batch to process
-            match_method: Color matching method to use
-            match_strength: Strength of color matching effect
+            start_reference: Reference image for start of sequence color matching
+            end_reference: Reference image for end of sequence color matching
+            target_images: Target image batch to process
+            method: Color matching method to use
+            strength: Strength of color matching effect
             multithread: Whether to use multithreading for processing
             blend_curve: Type of blending curve to apply
             reverse: Whether to reverse the blend direction
@@ -156,9 +156,9 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
             Tuple containing the processed image batch tensor
         """
         # Move tensors to CPU for processing
-        start_ref = start_image_ref.cpu().squeeze()
-        end_ref = end_image_ref.cpu().squeeze()
-        target_batch = image_target.cpu()
+        start_ref = start_reference.cpu().squeeze()
+        end_ref = end_reference.cpu().squeeze()
+        target_batch = target_images.cpu()
 
         batch_size = target_batch.shape[0]
 
@@ -186,12 +186,12 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
 
             # Apply color matching with start reference
             matched_start = self.apply_color_match(
-                target_frame, start_ref, match_method, match_strength
+                target_frame, start_ref, method, strength
             )
 
             # Apply color matching with end reference
             matched_end = self.apply_color_match(
-                target_frame, end_ref, match_method, match_strength
+                target_frame, end_ref, method, strength
             )
 
             # Blend between the two color matched results based on position

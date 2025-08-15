@@ -33,11 +33,11 @@ Applies progressive color matching from two reference images across a target bat
 - Automatic color correction with smooth transitions
 
 **Inputs:**
-- `start_image_ref`: Reference image for start color palette
-- `end_image_ref`: Reference image for end color palette
-- `image_target`: Target image batch to process
-- `match_method`: Color matching algorithm (mkl, hm, reinhard, mvgd, hm-mvgd-hm, hm-mkl-hm)
-- `match_strength`: Strength of color matching effect (0.0-10.0)
+- `start_reference`: Reference image for start color palette
+- `end_reference`: Reference image for end color palette
+- `target_images`: Target image batch to process
+- `method`: Color matching algorithm (mkl, hm, reinhard, mvgd, hm-mvgd-hm, hm-mkl-hm)
+- `strength`: Strength of color matching effect (0.0-10.0)
 - `multithread`: Enable multithreading for faster processing
 - `blend_curve`: Blending curve type
 - `reverse`: Reverse the blend direction
@@ -105,9 +105,9 @@ Create a smooth transition between two video clips:
 
 ### Example 2: Color Grading Transition
 Apply a day-to-night color grade transition:
-1. Load a day reference image as `start_image_ref`
-2. Load a night reference image as `end_image_ref`
-3. Load your video as `image_target`
+1. Load a day reference image as `start_reference`
+2. Load a night reference image as `end_reference`
+3. Load your video as `target_images`
 4. Use Progressive Color Match Blend with method "hm-mvgd-hm"
 
 ## Technical Details

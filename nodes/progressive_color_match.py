@@ -62,14 +62,14 @@ class ProgressiveColorMatchBlend:
                 }),
             },
             "optional": {
-                "match_multithread": ("BOOLEAN", {"default": True}),
+                "multithread": ("BOOLEAN", {"default": True}),
                 "blend_curve": (curve_options, curve_default),
-                "blend_reverse": ("BOOLEAN", {"default": False}),
+                "reverse": ("BOOLEAN", {"default": False}),
             }
         }
 
     RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("image",)
+    RETURN_NAMES = ("images",)
 
     FUNCTION = "progressive_color_match"
 
@@ -136,9 +136,9 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
                                image_target: torch.Tensor,
                                match_method: str,
                                match_strength: float,
-                               match_multithread: bool = True,
+                               multithread: bool = True,
                                blend_curve: str = "linear",
-                               blend_reverse: bool = False) -> Tuple[torch.Tensor]:
+                               reverse: bool = False) -> Tuple[torch.Tensor]:
         """
         Progressively apply color matching and blending to an image batch.
 
@@ -148,9 +148,9 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
             image_target: Target image batch to process
             match_method: Color matching method to use
             match_strength: Strength of color matching effect
-            match_multithread: Whether to use multithreading for processing
+            multithread: Whether to use multithreading for processing
             blend_curve: Type of blending curve to apply
-            blend_reverse: Whether to reverse the blend direction
+            reverse: Whether to reverse the blend direction
 
         Returns:
             Tuple containing the processed image batch tensor
@@ -182,7 +182,7 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
             target_frame = target_batch[i]
 
             # Calculate blend factor for this frame
-            blend_factor = calculate_blend_factor(i, batch_size, blend_curve, blend_reverse)
+            blend_factor = calculate_blend_factor(i, batch_size, blend_curve, reverse)
 
             # Apply color matching with start reference
             matched_start = self.apply_color_match(
@@ -205,7 +205,7 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
             return blended
 
         # Process frames with optional multithreading
-        if match_multithread and batch_size > 1:
+        if multithread and batch_size > 1:
             max_threads = min(os.cpu_count() or 1, batch_size)
             with ThreadPoolExecutor(max_workers=max_threads) as executor:
                 processed_frames = list(executor.map(process_frame, range(batch_size)))

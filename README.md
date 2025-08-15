@@ -20,6 +20,9 @@ Blends two image batches with a progressively changing blend factor from 0.0 to 
 - `blend_curve`: Blending curve type (linear, ease_in, ease_out, ease_in_out)
 - `reverse`: Reverse the blend direction
 
+**Output:**
+- `images`: Blended image batch
+
 ### 2. Progressive Color Match Blend
 Applies progressive color matching from two reference images across a target batch, creating smooth color transitions.
 
@@ -35,9 +38,12 @@ Applies progressive color matching from two reference images across a target bat
 - `image_target`: Target image batch to process
 - `match_method`: Color matching algorithm (mkl, hm, reinhard, mvgd, hm-mvgd-hm, hm-mkl-hm)
 - `match_strength`: Strength of color matching effect (0.0-10.0)
-- `match_multithread`: Enable multithreading for faster processing
+- `multithread`: Enable multithreading for faster processing
 - `blend_curve`: Blending curve type
-- `blend_reverse`: Reverse the blend direction
+- `reverse`: Reverse the blend direction
+
+**Output:**
+- `images`: Processed image batch with progressive color matching
 
 ## Installation
 
@@ -53,7 +59,7 @@ cd ~/ComfyUI/custom_nodes/
 
 2. Clone this repository:
 ```bash
-git clone https://github.com/VraethrDalkr/ComfyUI-ProgressiveBlend.git
+git clone https://github.com/[your-username]/ComfyUI-ProgressiveBlend.git
 ```
 
 3. Install required dependencies:

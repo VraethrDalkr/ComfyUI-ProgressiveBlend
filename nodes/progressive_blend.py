@@ -34,12 +34,22 @@ class ProgressiveImageBatchBlend:
 
         return {
             "required": {
-                "images1": ("IMAGE",),  # First image batch
-                "images2": ("IMAGE",),  # Second image batch
+                "images1": ("IMAGE", {
+                    "tooltip": "First image batch/video frames to blend from"
+                }),
+                "images2": ("IMAGE", {
+                    "tooltip": "Second image batch/video frames to blend to"
+                }),
             },
             "optional": {
-                "blend_curve": (curve_options, curve_default),  # Blend curve type
-                "reverse": ("BOOLEAN", {"default": False}),  # Reverse blend direction
+                "blend_curve": (curve_options, {
+                    **curve_default,
+                    "tooltip": "Transition curve shape. linear=constant, ease_in=accelerate, ease_out=decelerate, ease_in_out=S-curve, ease_out_in=inverse-S"
+                }),
+                "reverse": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Reverse the blend direction (end to start instead of start to end)"
+                }),
             }
         }
 

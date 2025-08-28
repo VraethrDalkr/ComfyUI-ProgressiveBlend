@@ -42,7 +42,13 @@ class ProgressiveColorMatchBlend:
 
         return {
             "required": {
-                "target_images": ("IMAGE",),    # Target image batch to process
+                "enabled": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Enable color matching. When disabled, passes through original images"
+                }),
+                "target_images": ("IMAGE", {
+                    "tooltip": "Image batch/video frames to apply color matching to"
+                }),
                 "method": (
                     [
                         'mkl',
@@ -52,21 +58,38 @@ class ProgressiveColorMatchBlend:
                         'hm-mvgd-hm',
                         'hm-mkl-hm',
                     ],
-                    {"default": 'mkl'}
+                    {
+                        "default": 'mkl',
+                        "tooltip": "Color matching algorithm. mkl=general purpose, hm=fast, reinhard=classic, mvgd=statistical, compounds=best quality"
+                    }
                 ),
                 "strength": ("FLOAT", {
                     "default": 1.0,
                     "min": 0.0,
                     "max": 10.0,
-                    "step": 0.01
+                    "step": 0.01,
+                    "tooltip": "Intensity of color matching effect. 0=no effect, 1=normal, >1=amplified"
                 }),
             },
             "optional": {
-                "start_reference": ("IMAGE",),  # Optional start reference image
-                "end_reference": ("IMAGE",),    # Optional end reference image
-                "multithread": ("BOOLEAN", {"default": True}),
-                "blend_curve": (curve_options, curve_default),
-                "reverse": ("BOOLEAN", {"default": False}),
+                "start_reference": ("IMAGE", {
+                    "tooltip": "Reference image for start colors. Leave empty to fade from original"
+                }),
+                "end_reference": ("IMAGE", {
+                    "tooltip": "Reference image for end colors. Leave empty to fade to original"
+                }),
+                "multithread": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Use multiple CPU threads for faster processing of large batches"
+                }),
+                "blend_curve": (curve_options, {
+                    **curve_default,
+                    "tooltip": "Transition curve shape. linear=constant, ease_in=accelerate, ease_out=decelerate, ease_in_out=S-curve, ease_out_in=inverse-S"
+                }),
+                "reverse": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Reverse the blend direction (end to start instead of start to end)"
+                }),
             }
         }
 
@@ -145,7 +168,8 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
             # Return original image on error
             return target_image
 
-    def progressive_color_match(self, target_images: torch.Tensor,
+    def progressive_color_match(self, enabled: bool,
+                               target_images: torch.Tensor,
                                method: str,
                                strength: float,
                                start_reference: Optional[torch.Tensor] = None,
@@ -157,6 +181,7 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
         Progressively apply color matching and blending to an image batch.
 
         Args:
+            enabled: Whether to apply color matching or pass through
             target_images: Target image batch to process
             method: Color matching method to use
             strength: Strength of color matching effect
@@ -169,6 +194,10 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
         Returns:
             Tuple containing the processed image batch tensor
         """
+        # If disabled, pass through original images
+        if not enabled:
+            return (target_images,)
+
         # Check which references are provided
         has_start = start_reference is not None
         has_end = end_reference is not None

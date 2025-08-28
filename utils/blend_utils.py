@@ -16,12 +16,12 @@ def calculate_blend_factor(index: int, total: int, curve: str = "linear",
     Args:
         index: Current frame index (0-based)
         total: Total number of frames
-        curve: Type of blending curve to use ('linear', 'ease_in', 'ease_out', 'ease_in_out')
+        curve: Type of blending curve to use ('linear', 'ease_in', 'ease_out', 'ease_in_out', 'ease_out_in')
         reverse: Whether to reverse the blend direction
-        
+
     Returns:
         Float blend factor between 0 and 1
-        
+
     Examples:
         >>> calculate_blend_factor(0, 10, 'linear', False)
         0.0
@@ -35,11 +35,11 @@ def calculate_blend_factor(index: int, total: int, curve: str = "linear",
         t = 0.0
     else:
         t = index / (total - 1)
-    
+
     # Apply reverse if needed
     if reverse:
         t = 1.0 - t
-    
+
     # Apply curve transformation
     if curve == "ease_in":
         # Quadratic ease-in: slow start, accelerating
@@ -53,20 +53,30 @@ def calculate_blend_factor(index: int, total: int, curve: str = "linear",
             blend_factor = 2 * t * t
         else:
             blend_factor = 1.0 - pow(-2 * t + 2, 2) / 2
+    elif curve == "ease_out_in":
+        # Inverse S-curve: fast at both ends, slow in middle
+        if t < 0.5:
+            # First half: ease-out (fast start, slow approach to middle)
+            t_half = t * 2  # Scale to 0-1 for first half
+            blend_factor = (1.0 - (1.0 - t_half) * (1.0 - t_half)) * 0.5
+        else:
+            # Second half: ease-in (slow departure from middle, fast end)
+            t_half = (t - 0.5) * 2  # Scale to 0-1 for second half
+            blend_factor = 0.5 + (t_half * t_half) * 0.5
     else:  # linear
         # Linear: constant rate of change
         blend_factor = t
-    
+
     return blend_factor
 
 
 def get_blend_curve_options() -> Tuple[list, dict]:
     """
     Get the available blend curve options for ComfyUI nodes.
-    
+
     Returns:
         Tuple of (options_list, default_dict) for ComfyUI INPUT_TYPES
     """
-    options = ["linear", "ease_in", "ease_out", "ease_in_out"]
+    options = ["linear", "ease_in", "ease_out", "ease_in_out", "ease_out_in"]
     default = {"default": "linear"}
     return options, default

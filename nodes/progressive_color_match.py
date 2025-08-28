@@ -9,7 +9,7 @@ Original ColorMatch node licensed under GPL-3.0
 
 import torch
 import os
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 
 # Use relative import from parent package
@@ -18,10 +18,12 @@ from ..utils.blend_utils import calculate_blend_factor, get_blend_curve_options
 
 class ProgressiveColorMatchBlend:
     """
-    A ComfyUI node that progressively blends color matching effects between two reference images.
+    A ComfyUI node that progressively blends color matching effects between reference images.
 
-    This node applies color matching from two reference images to a target batch,
-    with the influence progressively transitioning from the start reference to the end reference.
+    This node can work with:
+    - Two references: Progressive transition from start to end reference
+    - Start reference only: Fade from color matched to original
+    - End reference only: Fade from original to color matched
     """
 
     def __init__(self):
@@ -40,8 +42,6 @@ class ProgressiveColorMatchBlend:
 
         return {
             "required": {
-                "start_reference": ("IMAGE",),  # Start reference image for color matching
-                "end_reference": ("IMAGE",),    # End reference image for color matching
                 "target_images": ("IMAGE",),    # Target image batch to process
                 "method": (
                     [
@@ -62,6 +62,8 @@ class ProgressiveColorMatchBlend:
                 }),
             },
             "optional": {
+                "start_reference": ("IMAGE",),  # Optional start reference image
+                "end_reference": ("IMAGE",),    # Optional end reference image
                 "multithread": ("BOOLEAN", {"default": True}),
                 "blend_curve": (curve_options, curve_default),
                 "reverse": ("BOOLEAN", {"default": False}),
@@ -76,8 +78,13 @@ class ProgressiveColorMatchBlend:
     CATEGORY = "image/blend"
 
     DESCRIPTION = """
-Progressively applies color matching from two reference images across a batch.
-The color matching effect transitions from the start reference to the end reference.
+Progressively applies color matching from reference images across a batch.
+
+Modes:
+- Both references: Transitions from start to end reference colors
+- Start reference only: Fades from color matched to original
+- End reference only: Fades from original to color matched
+- No references: Returns original images
 
 Based on color-matcher library which enables color transfer across images.
 Useful for automatic color-grading of photographs, paintings and film sequences.
@@ -89,6 +96,13 @@ Methods available:
 - mvgd: Multi-Variate Gaussian Distribution
 - hm-mvgd-hm: HM-MVGD-HM compound
 - hm-mkl-hm: HM-MKL-HM compound
+
+Blend curves:
+- linear: Constant rate of change
+- ease_in: Slow start, accelerating
+- ease_out: Fast start, decelerating
+- ease_in_out: Slow at both ends, fast middle
+- ease_out_in: Fast at both ends, slow middle
 
 Original color matching implementation by Kijai (ComfyUI-KJNodes)
 """
@@ -131,11 +145,11 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
             # Return original image on error
             return target_image
 
-    def progressive_color_match(self, start_reference: torch.Tensor,
-                               end_reference: torch.Tensor,
-                               target_images: torch.Tensor,
+    def progressive_color_match(self, target_images: torch.Tensor,
                                method: str,
                                strength: float,
+                               start_reference: Optional[torch.Tensor] = None,
+                               end_reference: Optional[torch.Tensor] = None,
                                multithread: bool = True,
                                blend_curve: str = "linear",
                                reverse: bool = False) -> Tuple[torch.Tensor]:
@@ -143,11 +157,11 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
         Progressively apply color matching and blending to an image batch.
 
         Args:
-            start_reference: Reference image for start of sequence color matching
-            end_reference: Reference image for end of sequence color matching
             target_images: Target image batch to process
             method: Color matching method to use
             strength: Strength of color matching effect
+            start_reference: Optional reference image for start of sequence
+            end_reference: Optional reference image for end of sequence
             multithread: Whether to use multithreading for processing
             blend_curve: Type of blending curve to apply
             reverse: Whether to reverse the blend direction
@@ -155,18 +169,32 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
         Returns:
             Tuple containing the processed image batch tensor
         """
-        # Move tensors to CPU for processing
-        start_ref = start_reference.cpu().squeeze()
-        end_ref = end_reference.cpu().squeeze()
-        target_batch = target_images.cpu()
+        # Check which references are provided
+        has_start = start_reference is not None
+        has_end = end_reference is not None
 
+        # If no references provided, return original images
+        if not has_start and not has_end:
+            print("No reference images provided, returning original images")
+            return (target_images,)
+
+        # Move tensors to CPU for processing
+        target_batch = target_images.cpu()
         batch_size = target_batch.shape[0]
 
-        # Ensure reference images are 3D (H, W, C)
-        if start_ref.dim() == 4:
-            start_ref = start_ref[0]
-        if end_ref.dim() == 4:
-            end_ref = end_ref[0]
+        # Prepare reference images if provided
+        start_ref = None
+        end_ref = None
+
+        if has_start:
+            start_ref = start_reference.cpu().squeeze()
+            if start_ref.dim() == 4:
+                start_ref = start_ref[0]
+
+        if has_end:
+            end_ref = end_reference.cpu().squeeze()
+            if end_ref.dim() == 4:
+                end_ref = end_ref[0]
 
         def process_frame(i: int) -> torch.Tensor:
             """
@@ -184,20 +212,35 @@ Original color matching implementation by Kijai (ComfyUI-KJNodes)
             # Calculate blend factor for this frame
             blend_factor = calculate_blend_factor(i, batch_size, blend_curve, reverse)
 
-            # Apply color matching with start reference
-            matched_start = self.apply_color_match(
-                target_frame, start_ref, method, strength
-            )
+            if has_start and has_end:
+                # Both references: blend between two color matched versions
+                matched_start = self.apply_color_match(
+                    target_frame, start_ref, method, strength
+                )
+                matched_end = self.apply_color_match(
+                    target_frame, end_ref, method, strength
+                )
+                # blend_factor = 0: 100% start_ref matching
+                # blend_factor = 1: 100% end_ref matching
+                blended = matched_start * (1.0 - blend_factor) + matched_end * blend_factor
 
-            # Apply color matching with end reference
-            matched_end = self.apply_color_match(
-                target_frame, end_ref, method, strength
-            )
+            elif has_start:
+                # Start reference only: fade from color matched to original
+                matched = self.apply_color_match(
+                    target_frame, start_ref, method, strength
+                )
+                # blend_factor = 0: 100% color matched
+                # blend_factor = 1: 100% original
+                blended = matched * (1.0 - blend_factor) + target_frame * blend_factor
 
-            # Blend between the two color matched results based on position
-            # blend_factor = 0: 100% start_ref matching
-            # blend_factor = 1: 100% end_ref matching
-            blended = matched_start * (1.0 - blend_factor) + matched_end * blend_factor
+            else:  # has_end only
+                # End reference only: fade from original to color matched
+                matched = self.apply_color_match(
+                    target_frame, end_ref, method, strength
+                )
+                # blend_factor = 0: 100% original
+                # blend_factor = 1: 100% color matched
+                blended = target_frame * (1.0 - blend_factor) + matched * blend_factor
 
             # Ensure values stay in valid range
             blended = torch.clamp(blended, 0.0, 1.0)

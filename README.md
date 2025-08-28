@@ -17,27 +17,36 @@ Blends two image batches with a progressively changing blend factor from 0.0 to 
 **Inputs:**
 - `images1`: First image batch
 - `images2`: Second image batch
-- `blend_curve`: Blending curve type (linear, ease_in, ease_out, ease_in_out)
+- `blend_curve`: Blending curve type (linear, ease_in, ease_out, ease_in_out, ease_out_in)
 - `reverse`: Reverse the blend direction
 
 **Output:**
 - `images`: Blended image batch
 
 ### 2. Progressive Color Match Blend
-Applies progressive color matching from two reference images across a target batch, creating smooth color transitions.
+Applies progressive color matching from reference images across a target batch, creating smooth color transitions.
+
+**Modes:**
+- **Both references**: Transitions from start to end reference colors
+- **Start reference only**: Fades from color matched to original colors
+- **End reference only**: Fades from original to color matched colors
+- **No references**: Returns original images unchanged
 
 **Use Cases:**
 - Color grading transitions in videos
 - Matching footage shot under different lighting conditions
 - Creating artistic color progression effects
 - Automatic color correction with smooth transitions
+- Creative pulse effects with single reference and ease_in_out curves
 
-**Inputs:**
-- `start_reference`: Reference image for start color palette
-- `end_reference`: Reference image for end color palette
+**Required Inputs:**
 - `target_images`: Target image batch to process
 - `method`: Color matching algorithm (mkl, hm, reinhard, mvgd, hm-mvgd-hm, hm-mkl-hm)
 - `strength`: Strength of color matching effect (0.0-10.0)
+
+**Optional Inputs:**
+- `start_reference`: Reference image for start color palette
+- `end_reference`: Reference image for end color palette
 - `multithread`: Enable multithreading for faster processing
 - `blend_curve`: Blending curve type
 - `reverse`: Reverse the blend direction
@@ -82,8 +91,9 @@ Both nodes use a progressive blending system where each frame in a batch gets a 
 ### Blend Curves
 - **linear**: Constant rate of change
 - **ease_in**: Starts slow, accelerates (quadratic)
-- **ease_out**: Starts fast, decelerates (quadratic)
+- **ease_out**: Starts fast, decelerates (quadratic)  
 - **ease_in_out**: Slow at both ends, fast in middle (cubic)
+- **ease_out_in**: Fast at both ends, slow in middle (inverse S-curve)
 
 ### Color Matching Methods
 The Progressive Color Match Blend node uses the `color-matcher` library with these methods:
